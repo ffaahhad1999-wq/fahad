@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mini Woardle — One File</title>
+  <title>صندوق — لعبة الكلمات</title>
   <style>
     :root{
       --bg:#0f1720; --tile:#111827; --text:#e5e7eb;
@@ -11,7 +11,7 @@
     }
     *{box-sizing:border-box}
     body{
-      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      margin:0; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
       background:var(--bg); color:var(--text); display:flex; flex-direction:column;
       align-items:center; min-height:100vh; padding:24px;
     }
@@ -20,7 +20,7 @@
     .row{ display:grid; grid-template-columns:repeat(5,64px); gap:8px; }
     .tile{
       width:64px;height:64px;background:var(--tile);display:flex;align-items:center;
-      justify-content:center;font-weight:700;font-size:28px;text-transform:uppercase;
+      justify-content:center;font-weight:700;font-size:28px;
       border-radius:6px;user-select:none;
     }
     .tile.filled{ border:2px solid rgba(255,255,255,0.06); }
@@ -37,6 +37,15 @@
     .kbkey.absent{ background:var(--absent); }
     .kbkey.present{ background:var(--present); }
     .kbkey.correct{ background:var(--correct); }
+    .lang-switch{
+      margin-top:16px; text-align:center;
+    }
+    .lang-switch a{
+      color:var(--text); text-decoration:none; opacity:0.7;
+    }
+    .lang-switch a:hover{
+      opacity:1;
+    }
     @media (max-width:420px){
       .row{ grid-template-columns:repeat(5,48px); } .tile{ width:48px;height:48px;font-size:20px; }
     }
@@ -44,22 +53,28 @@
 </head>
 <body>
   <header>
-    <h1>Mini Woardle</h1>
-    <p>Guess the 5-letter word. 6 tries.</p>
+    <h1>صندوق</h1>
+    <p>خمن الكلمة المكونة من 5 أحرف. 6 محاولات.</p>
   </header>
 
   <main id="game">
-    <div id="board" aria-label="game board"></div>
-    <div id="keyboard" class="keyboard" aria-label="on-screen keyboard"></div>
+    <div id="board" aria-label="لوحة اللعبة"></div>
+    <div id="keyboard" class="keyboard" aria-label="لوحة المفاتيح"></div>
   </main>
+
+  <div class="lang-switch">
+    <a href="index.html">English Version</a>
+  </div>
 
   <template id="tile-template"><div class="tile" aria-hidden="true"></div></template>
 
   <script>
-    // WORD LIST (lowercase)
-    const WORDS = ["apple","bench","candy","delta","eager","flame","grape","house",
-      "input","jelly","knock","lemon","mango","noble","ocean","pride","queen",
-      "river","stone","tiger","uncle","vivid","waltz","xenon","yacht","zebra"];
+    // WORD LIST (5-letter Arabic words without diacritics)
+    const WORDS = ["كتاب","قلوب","نجوم","بحار","جبال","شمال","يمين","وسام","حلوى","رياض",
+      "قصور","زهور","طيور","سماء","ارض","نهار","ليال","صباح","مساء","خريف",
+      "شتاء","صيف","ربيع","قمر","شمس","نور","ظلام","طريق","باب","نافذ",
+      "كرسي","طاول","جدار","سقف","ارضي","مطبخ","غرفه","صالة","حمام","حديق",
+      "زراع","صناع","تجار","علوم","فنون","اداب","شعر","نثر","روايه","قصص"];
 
     const WORD_LENGTH = 5, MAX_GUESSES = 6;
     let solution = WORDS[Math.floor(Math.random() * WORDS.length)];
@@ -86,13 +101,17 @@
     }
 
     function createKeyboard(){
-      const rows = ["qwertyuiop","asdfghjkl","zxcvbnm"];
+      const rows = [
+        "ضصثقفغعهخحجد",
+        "شسيبلاتنمكط",
+        "ئءؤرلاىةوزظ"
+      ];
       keyboardEl.innerHTML = '';
       rows.forEach((r,i)=>{
         const kr = document.createElement('div'); kr.className='krow';
-        if(i===2){ kr.appendChild(keyEl('Enter','big')); }
+        if(i===2){ kr.appendChild(keyEl('إدخال','big')); }
         for(const ch of r) kr.appendChild(keyEl(ch));
-        if(i===2){ kr.appendChild(keyEl('Backspace','big')); }
+        if(i===2){ kr.appendChild(keyEl('حذف','big')); }
         keyboardEl.appendChild(kr);
       });
     }
@@ -104,14 +123,13 @@
     }
 
     function onKey(key){
-      if(key==='Enter') submitGuess();
-      else if(key==='Backspace') deleteLetter();
-      else if(/^[a-zA-Z]$/.test(key)) addLetter(key);
+      if(key==='إدخال' || key==='Enter') submitGuess();
+      else if(key==='حذف' || key==='Backspace') deleteLetter();
+      else if(/[\u0600-\u06FF]/.test(key)) addLetter(key);
     }
 
     function addLetter(letter){
       if(currentCol >= WORD_LENGTH) return;
-      letter = letter.toLowerCase();
       grid[currentRow][currentCol] = letter;
       updateTile(currentRow,currentCol,letter);
       currentCol++;
@@ -125,18 +143,18 @@
 
     function updateTile(row,col,letter){
       const rowEl = boardEl.children[row]; const tile = rowEl.children[col];
-      tile.textContent = letter.toUpperCase(); tile.classList.toggle('filled', letter !== '');
+      tile.textContent = letter; tile.classList.toggle('filled', letter !== '');
     }
 
     function submitGuess(){
-      if(currentCol !== WORD_LENGTH){ alert('Not enough letters'); return; }
+      if(currentCol !== WORD_LENGTH){ alert('عدد الأحرف غير كافٍ'); return; }
       const guess = grid[currentRow].join('');
-      if(!WORDS.includes(guess)){ alert('Word not in list'); return; }
+      if(!WORDS.includes(guess)){ alert('الكلمة غير موجودة في القائمة'); return; }
       const evaluation = evaluateGuess(guess);
       applyEvaluationToRow(currentRow,evaluation);
-      if(evaluation.every(s=>s==='correct')){ setTimeout(()=>alert('You win! The word was '+solution.toUpperCase()),100); disableInput(); return; }
+      if(evaluation.every(s=>s==='correct')){ setTimeout(()=>alert('أحسنت! الكلمة كانت: '+solution),100); disableInput(); return; }
       currentRow++; currentCol=0;
-      if(currentRow>=MAX_GUESSES){ setTimeout(()=>alert('Game over! The word was '+solution.toUpperCase()),100); disableInput(); }
+      if(currentRow>=MAX_GUESSES){ setTimeout(()=>alert('انتهت اللعبة! الكلمة كانت: '+solution),100); disableInput(); }
     }
 
     function evaluateGuess(guess){
@@ -150,8 +168,7 @@
       const rowEl = boardEl.children[row];
       for(let i=0;i<WORD_LENGTH;i++){
         const tile = rowEl.children[i]; tile.classList.add(evaluation[i]);
-        const key = document.querySelector(`[data-key="${grid[row][i].toUpperCase()}" i]`) ||
-                    document.querySelector(`[data-key="${grid[row][i]}" i]`);
+        const key = document.querySelector(`[data-key="${grid[row][i]}" i]`);
         if(key){
           if(evaluation[i]==='correct'){ key.classList.remove('present','absent'); key.classList.add('correct'); }
           else if(evaluation[i]==='present' && !key.classList.contains('correct')){ key.classList.remove('absent'); key.classList.add('present'); }
@@ -168,7 +185,7 @@
     function onPhysicalKey(e){
       if(e.key==='Enter') onKey('Enter');
       else if(e.key==='Backspace') onKey('Backspace');
-      else if(/^[a-zA-Z]$/.test(e.key)) onKey(e.key);
+      else if(/[\u0600-\u06FF]/.test(e.key)) onKey(e.key);
     }
 
     window._restart = function(){
