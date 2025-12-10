@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini Woardle — One File</title>
+  <style>
+    :root{
+      --bg:#0f1720; --tile:#111827; --text:#e5e7eb;
+      --absent:#3f3f46; --present:#b45309; --correct:#059669; --kbd:#111827;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background:var(--bg); color:var(--text); display:flex; flex-direction:column;
+      align-items:center; min-height:100vh; padding:24px;
+    }
+    header{text-align:center;margin-bottom:12px}
+    #board{ display:grid; gap:8px; margin:12px 0; }
+    .row{ display:grid; grid-template-columns:repeat(5,64px); gap:8px; }
+    .tile{
+      width:64px;height:64px;background:var(--tile);display:flex;align-items:center;
+      justify-content:center;font-weight:700;font-size:28px;text-transform:uppercase;
+      border-radius:6px;user-select:none;
+    }
+    .tile.filled{ border:2px solid rgba(255,255,255,0.06); }
+    .tile.absent{ background:var(--absent); color:#fff; }
+    .tile.present{ background:var(--present); color:#fff; }
+    .tile.correct{ background:var(--correct); color:#fff; }
+    .keyboard{ margin-top:16px; display:flex; flex-direction:column; gap:8px; align-items:center; }
+    .krow{ display:flex; gap:6px; }
+    .kbkey{
+      padding:10px 12px; background:var(--kbd); border-radius:6px; min-width:42px;
+      text-align:center; cursor:pointer; user-select:none;
+    }
+    .kbkey.big{ min-width:72px; }
+    .kbkey.absent{ background:var(--absent); }
+    .kbkey.present{ background:var(--present); }
+    .kbkey.correct{ background:var(--correct); }
+    @media (max-width:420px){
+      .row{ grid-template-columns:repeat(5,48px); } .tile{ width:48px;height:48px;font-size:20px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mini Woardle</h1>
+    <p>Guess the 5-letter word. 6 tries.</p>
+  </header>
+
+  <main id="game">
+    <div id="board" aria-label="game board"></div>
+    <div id="keyboard" class="keyboard" aria-label="on-screen keyboard"></div>
+  </main>
+
+  <template id="tile-template"><div class="tile" aria-hidden="true"></div></template>
+
+  <script>
+    // WORD LIST (lowercase)
+    const WORDS = ["apple","bench","candy","delta","eager","flame","grape","house",
+      "input","jelly","knock","lemon","mango","noble","ocean","pride","queen",
+      "river","stone","tiger","uncle","vivid","waltz","xenon","yacht","zebra"];
+
+    const WORD_LENGTH = 5, MAX_GUESSES = 6;
+    let solution = WORDS[Math.floor(Math.random() * WORDS.length)];
+    let boardEl, keyboardEl, currentRow=0, currentCol=0, grid;
+
+    function init(){
+      boardEl = document.getElementById('board');
+      keyboardEl = document.getElementById('keyboard');
+      grid = Array.from({length: MAX_GUESSES}, () => Array(WORD_LENGTH).fill(''));
+      createBoard(); createKeyboard();
+      document.addEventListener('keydown', onPhysicalKey);
+    }
+
+    function createBoard(){
+      boardEl.innerHTML = '';
+      for(let r=0;r<MAX_GUESSES;r++){
+        const row = document.createElement('div'); row.className='row'; row.dataset.row=r;
+        for(let c=0;c<WORD_LENGTH;c++){
+          const tile = document.createElement('div'); tile.className='tile'; tile.dataset.col=c;
+          row.appendChild(tile);
+        }
+        boardEl.appendChild(row);
+      }
+    }
+
+    function createKeyboard(){
+      const rows = ["qwertyuiop","asdfghjkl","zxcvbnm"];
+      keyboardEl.innerHTML = '';
+      rows.forEach((r,i)=>{
+        const kr = document.createElement('div'); kr.className='krow';
+        if(i===2){ kr.appendChild(keyEl('Enter','big')); }
+        for(const ch of r) kr.appendChild(keyEl(ch));
+        if(i===2){ kr.appendChild(keyEl('Backspace','big')); }
+        keyboardEl.appendChild(kr);
+      });
+    }
+
+    function keyEl(label, extra=''){
+      const k = document.createElement('div');
+      k.className = 'kbkey ' + extra; k.textContent = label; k.dataset.key = label;
+      k.addEventListener('click', ()=> onKey(label)); return k;
+    }
+
+    function onKey(key){
+      if(key==='Enter') submitGuess();
+      else if(key==='Backspace') deleteLetter();
+      else if(/^[a-zA-Z]$/.test(key)) addLetter(key);
+    }
+
+    function addLetter(letter){
+      if(currentCol >= WORD_LENGTH) return;
+      letter = letter.toLowerCase();
+      grid[currentRow][currentCol] = letter;
+      updateTile(currentRow,currentCol,letter);
+      currentCol++;
+    }
+
+    function deleteLetter(){
+      if(currentCol===0) return;
+      currentCol--; grid[currentRow][currentCol] = '';
+      updateTile(currentRow,currentCol,'');
+    }
+
+    function updateTile(row,col,letter){
+      const rowEl = boardEl.children[row]; const tile = rowEl.children[col];
+      tile.textContent = letter.toUpperCase(); tile.classList.toggle('filled', letter !== '');
+    }
+
+    function submitGuess(){
+      if(currentCol !== WORD_LENGTH){ alert('Not enough letters'); return; }
+      const guess = grid[currentRow].join('');
+      if(!WORDS.includes(guess)){ alert('Word not in list'); return; }
+      const evaluation = evaluateGuess(guess);
+      applyEvaluationToRow(currentRow,evaluation);
+      if(evaluation.every(s=>s==='correct')){ setTimeout(()=>alert('You win! The word was '+solution.toUpperCase()),100); disableInput(); return; }
+      currentRow++; currentCol=0;
+      if(currentRow>=MAX_GUESSES){ setTimeout(()=>alert('Game over! The word was '+solution.toUpperCase()),100); disableInput(); }
+    }
+
+    function evaluateGuess(guess){
+      const res = Array(WORD_LENGTH).fill('absent'); const solArr = solution.split('');
+      for(let i=0;i<WORD_LENGTH;i++){ if(guess[i]===solArr[i]){ res[i]='correct'; solArr[i]=null; } }
+      for(let i=0;i<WORD_LENGTH;i++){ if(res[i]==='correct') continue; const idx = solArr.indexOf(guess[i]); if(idx!==-1){ res[i]='present'; solArr[idx]=null; } }
+      return res;
+    }
+
+    function applyEvaluationToRow(row,evaluation){
+      const rowEl = boardEl.children[row];
+      for(let i=0;i<WORD_LENGTH;i++){
+        const tile = rowEl.children[i]; tile.classList.add(evaluation[i]);
+        const key = document.querySelector(`[data-key="${grid[row][i].toUpperCase()}" i]`) ||
+                    document.querySelector(`[data-key="${grid[row][i]}" i]`);
+        if(key){
+          if(evaluation[i]==='correct'){ key.classList.remove('present','absent'); key.classList.add('correct'); }
+          else if(evaluation[i]==='present' && !key.classList.contains('correct')){ key.classList.remove('absent'); key.classList.add('present'); }
+          else if(evaluation[i]==='absent' && !key.classList.contains('correct') && !key.classList.contains('present')){ key.classList.add('absent'); }
+        }
+      }
+    }
+
+    function disableInput(){
+      const clone = keyboardEl.cloneNode(true); keyboardEl.parentNode.replaceChild(clone, keyboardEl); keyboardEl = clone;
+      document.removeEventListener('keydown', onPhysicalKey);
+    }
+
+    function onPhysicalKey(e){
+      if(e.key==='Enter') onKey('Enter');
+      else if(e.key==='Backspace') onKey('Backspace');
+      else if(/^[a-zA-Z]$/.test(e.key)) onKey(e.key);
+    }
+
+    window._restart = function(){
+      solution = WORDS[Math.floor(Math.random()*WORDS.length)];
+      grid = Array.from({length: MAX_GUESSES}, () => Array(WORD_LENGTH).fill(''));
+      currentRow=0; currentCol=0; createBoard(); createKeyboard(); document.addEventListener('keydown', onPhysicalKey);
+    };
+
+    init();
+  </script>
+</body>
+</html>
