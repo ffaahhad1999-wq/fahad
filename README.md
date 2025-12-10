@@ -11,7 +11,7 @@
 
 ## Play Online
 
-- **English Version**: [index.html](index.html:)
+- **English Version**: [index.html](index.html)
 - **Arabic Version**: [ar.html](ar.html)
 
 ## How to Play
