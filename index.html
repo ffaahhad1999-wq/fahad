@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لعبة الكلمات العربية</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: #fff;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    .instructions {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+    #game-board {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 30px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 60px);
+      gap: 8px;
+    }
+    .tile {
+      width: 60px;
+      height: 60px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: bold;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    .tile.filled {
+      border-color: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .tile.correct {
+      background: #22c55e;
+      border-color: #16a34a;
+      color: white;
+    }
+    .tile.present {
+      background: #f59e0b;
+      border-color: #d97706;
+      color: white;
+    }
+    .tile.absent {
+      background: #64748b;
+      border-color: #475569;
+      color: white;
+    }
+    #keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+    .keyboard-row {
+      display: flex;
+      gap: 6px;
+    }
+    .key {
+      min-width: 40px;
+      padding: 12px 8px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .key:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: translateY(-2px);
+    }
+    .key.big {
+      min-width: 80px;
+      font-size: 0.9rem;
+    }
+    .key.correct {
+      background: #22c55e;
+      color: white;
+    }
+    .key.present {
+      background: #f59e0b;
+      color: white;
+    }
+    .key.absent {
+      background: #64748b;
+      color: white;
+    }
+    #message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 20px 40px;
+      border-radius: 12px;
+      font-size: 1.2rem;
+      display: none;
+      z-index: 1000;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    .button-container {
+      margin-top: 20px;
+    }
+    .restart-btn {
+      background: rgba(255, 255, 255, 0.9);
+      color: #667eea;
+      border: none;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .restart-btn:hover {
+      background: white;
+      transform: translateY(-2px);
+    }
+    @media (max-width: 480px) {
+      .row { grid-template-columns: repeat(5, 50px); }
+      .tile { width: 50px; height: 50px; font-size: 1.5rem; }
+      h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎯 لعبة الكلمات العربية</h1>
+    <p class="instructions">خمن الكلمة من 5 أحرف في 6 محاولات</p>
+  </header>
+
+  <div id="game-board"></div>
+  <div id="keyboard"></div>
+  
+  <div class="button-container">
+    <button class="restart-btn" onclick="restartGame()">🔄 لعبة جديدة</button>
+  </div>
+
+  <div id="message"></div>
+
+  <script src="words.js"></script>
+  <script>
+    const WORD_LENGTH = 5;
+    const MAX_ATTEMPTS = 6;
+    
+    let targetWord = '';
+    let currentRow = 0;
+    let currentTile = 0;
+    let gameOver = false;
+    let guessedWords = [];
+
+    // لوحة المفاتيح العربية
+    const arabicKeys = [
+      ['ض', 'ص', 'ث', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ج', 'د'],
+      ['ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ك', 'ط'],
+      ['إدخال', 'ئ', 'ء', 'ؤ', 'ر', 'ى', 'ة', 'و', 'ز', 'ظ', 'حذف']
+    ];
+
+    function init() {
+      selectRandomWord();
+      createBoard();
+      createKeyboard();
+      document.addEventListener('keydown', handlePhysicalKeyboard);
+    }
+
+    function selectRandomWord() {
+      if (window.WORDS && window.WORDS.length > 0) {
+        targetWord = window.WORDS[Math.floor(Math.random() * window.WORDS.length)];
+        console.log('الكلمة المستهدفة:', targetWord);
+      } else {
+        console.error('قائمة الكلمات غير متوفرة');
+      }
+    }
+
+    function createBoard() {
+      const board = document.getElementById('game-board');
+      board.innerHTML = '';
+      
+      for (let row = 0; row < MAX_ATTEMPTS; row++) {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'row';
+        
+        for (let col = 0; col < WORD_LENGTH; col++) {
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+          tile.id = `tile-${row}-${col}`;
+          rowDiv.appendChild(tile);
+        }
+        
+        board.appendChild(rowDiv);
+      }
+    }
+
+    function createKeyboard() {
+      const keyboard = document.getElementById('keyboard');
+      keyboard.innerHTML = '';
+      
+      arabicKeys.forEach(row => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'keyboard-row';
+        
+        row.forEach(key => {
+          const keyButton = document.createElement('button');
+          keyButton.className = 'key';
+          keyButton.textContent = key;
+          keyButton.setAttribute('data-key', key);
+          
+          if (key === 'إدخال' || key === 'حذف') {
+            keyButton.classList.add('big');
+          }
+          
+          keyButton.addEventListener('click', () => handleKeyPress(key));
+          rowDiv.appendChild(keyButton);
+        });
+        
+        keyboard.appendChild(rowDiv);
+      });
+    }
+
+    function handleKeyPress(key) {
+      if (gameOver) return;
+      
+      if (key === 'إدخال') {
+        submitGuess();
+      } else if (key === 'حذف') {
+        deleteLetter();
+      } else if (currentTile < WORD_LENGTH) {
+        addLetter(key);
+      }
+    }
+
+    function addLetter(letter) {
+      if (currentTile >= WORD_LENGTH) return;
+      
+      const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+      tile.textContent = letter;
+      tile.classList.add('filled');
+      currentTile++;
+    }
+
+    function deleteLetter() {
+      if (currentTile === 0) return;
+      
+      currentTile--;
+      const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+      tile.textContent = '';
+      tile.classList.remove('filled');
+    }
+
+    function submitGuess() {
+      if (currentTile !== WORD_LENGTH) {
+        showMessage('الكلمة غير كاملة');
+        return;
+      }
+      
+      const guess = getCurrentGuess();
+      
+      if (!window.WORDS.includes(guess)) {
+        showMessage('الكلمة غير موجودة في القائمة');
+        return;
+      }
+      
+      guessedWords.push(guess);
+      checkGuess(guess);
+      
+      if (guess === targetWord) {
+        gameOver = true;
+        setTimeout(() => showMessage('🎉 مبروك! لقد فزت!', 3000), 600);
+      } else if (currentRow === MAX_ATTEMPTS - 1) {
+        gameOver = true;
+        setTimeout(() => showMessage(`😔 انتهت اللعبة! الكلمة كانت: ${targetWord}`, 4000), 600);
+      } else {
+        currentRow++;
+        currentTile = 0;
+      }
+    }
+
+    function getCurrentGuess() {
+      let guess = '';
+      for (let col = 0; col < WORD_LENGTH; col++) {
+        const tile = document.getElementById(`tile-${currentRow}-${col}`);
+        guess += tile.textContent;
+      }
+      return guess;
+    }
+
+    function checkGuess(guess) {
+      const targetLetters = targetWord.split('');
+      const guessLetters = guess.split('');
+      const letterStatus = new Array(WORD_LENGTH).fill('absent');
+      
+      // أولاً: تحديد الحروف الصحيحة في المكان الصحيح
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        if (guessLetters[i] === targetLetters[i]) {
+          letterStatus[i] = 'correct';
+          targetLetters[i] = null;
+        }
+      }
+      
+      // ثانياً: تحديد الحروف الصحيحة في المكان الخطأ
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        if (letterStatus[i] === 'correct') continue;
+        
+        const index = targetLetters.indexOf(guessLetters[i]);
+        if (index !== -1) {
+          letterStatus[i] = 'present';
+          targetLetters[index] = null;
+        }
+      }
+      
+      // تطبيق الألوان على المربعات
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        const tile = document.getElementById(`tile-${currentRow}-${i}`);
+        setTimeout(() => {
+          tile.classList.add(letterStatus[i]);
+        }, i * 100);
+      }
+      
+      // تحديث لوحة المفاتيح
+      updateKeyboard(guessLetters, letterStatus);
+    }
+
+    function updateKeyboard(letters, statuses) {
+      letters.forEach((letter, index) => {
+        const key = document.querySelector(`[data-key="${letter}"]`);
+        if (key) {
+          const status = statuses[index];
+          setTimeout(() => {
+            if (status === 'correct') {
+              key.classList.remove('present', 'absent');
+              key.classList.add('correct');
+            } else if (status === 'present' && !key.classList.contains('correct')) {
+              key.classList.remove('absent');
+              key.classList.add('present');
+            } else if (status === 'absent' && !key.classList.contains('correct') && !key.classList.contains('present')) {
+              key.classList.add('absent');
+            }
+          }, index * 100 + 300);
+        }
+      });
+    }
+
+    function showMessage(text, duration = 2000) {
+      const messageDiv = document.getElementById('message');
+      messageDiv.textContent = text;
+      messageDiv.style.display = 'block';
+      
+      setTimeout(() => {
+        messageDiv.style.display = 'none';
+      }, duration);
+    }
+
+    function handlePhysicalKeyboard(e) {
+      if (gameOver) return;
+      
+      if (e.key === 'Enter') {
+        handleKeyPress('إدخال');
+      } else if (e.key === 'Backspace') {
+        handleKeyPress('حذف');
+      } else {
+        // السماح بالأحرف العربية
+        if (/[\u0600-\u06FF]/.test(e.key)) {
+          handleKeyPress(e.key);
+        }
+      }
+    }
+
+    function restartGame() {
+      currentRow = 0;
+      currentTile = 0;
+      gameOver = false;
+      guessedWords = [];
+      selectRandomWord();
+      createBoard();
+      createKeyboard();
+    }
+
+    // بدء اللعبة
+    init();
+  </script>
+</body>
+</html>
