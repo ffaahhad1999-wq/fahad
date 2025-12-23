@@ -37,6 +37,10 @@
     .kbkey.absent{ background:var(--absent); }
     .kbkey.present{ background:var(--present); }
     .kbkey.correct{ background:var(--correct); }
+    .restart-btn{
+      margin-top:16px; padding:12px 24px; background:var(--correct); color:#fff;
+      border:none; border-radius:6px; font-size:16px; font-weight:600; cursor:pointer;
+    }
     @media (max-width:420px){
       .row{ grid-template-columns:repeat(5,48px); } .tile{ width:48px;height:48px;font-size:20px; }
     }
@@ -51,6 +55,7 @@
   <main id="game">
     <div id="board" aria-label="game board"></div>
     <div id="keyboard" class="keyboard" aria-label="on-screen keyboard"></div>
+    <button id="restart-btn" class="restart-btn">New Game</button>
   </main>
 
   <template id="tile-template"><div class="tile" aria-hidden="true"></div></template>
@@ -71,6 +76,7 @@
       grid = Array.from({length: MAX_GUESSES}, () => Array(WORD_LENGTH).fill(''));
       createBoard(); createKeyboard();
       document.addEventListener('keydown', onPhysicalKey);
+      document.getElementById('restart-btn').addEventListener('click', window._restart);
     }
 
     function createBoard(){
